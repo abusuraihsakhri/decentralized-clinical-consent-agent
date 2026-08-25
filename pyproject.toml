@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decentralized-clinical-consent-engine"
+version = "2.0.0"
+description = "ConsentLedger: Smart Contract Dynamic Patient Data Use Authorization Engine"
+readme = "README.md"
+authors = [{ name = "Dr. Abu Suraih Sakhri", email = "abusuraih@example.com" }]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Security/Cryptography",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+decentralized-clinical-consent-engine = "consent_ledger.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/abusuraihsakhri/decentralized-clinical-consent-engine"
+Repository = "https://github.com/abusuraihsakhri/decentralized-clinical-consent-engine.git"
