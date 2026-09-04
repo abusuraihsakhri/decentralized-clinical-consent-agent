@@ -4,6 +4,7 @@ Domain: Privacy-Preserving Federated Healthcare & FHE
 Standard: HL7 FHIR Consent Resource & W3C DID
 """
 import datetime
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any
@@ -25,6 +26,19 @@ class FrontierPayload:
     is_critical_flag: bool = False
     attributes: Dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+    def __post_init__(self):
+        """Validate metric values are finite and strings are non-empty."""
+        if not math.isfinite(self.primary_metric):
+            raise ValueError(f"primary_metric must be finite, got {self.primary_metric}")
+        if not math.isfinite(self.secondary_metric):
+            raise ValueError(f"secondary_metric must be finite, got {self.secondary_metric}")
+        if not self.task_id or not self.task_id.strip():
+            raise ValueError("task_id must not be empty")
+        if not self.target_identifier or not self.target_identifier.strip():
+            raise ValueError("target_identifier must not be empty")
+        if not self.status_descriptor or not self.status_descriptor.strip():
+            raise ValueError("status_descriptor must not be empty")
 
 
 @dataclass
