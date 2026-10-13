@@ -2,9 +2,10 @@
 FastAPI REST API Server for Decentralized Clinical Consent Agent.
 """
 from typing import Dict, Any, List
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from .base import AuditLogger, PHIGuard
+from .base import AuditLogger, SecurityException
+from .auth import require_api_token
 from .models import SystemTaskPayload, ConsensusDossier
 from .supervisor import SystemSupervisor
 
@@ -26,7 +27,7 @@ def health():
     return {"status": "HEALTHY", "service": "decentralized-clinical-consent-agent", "domain": "Clinical & Biomedical AI", "standard": "CAP / CLSI / ISO Standards", "version": "3.0.0-ENTERPRISE"}
 
 
-@app.get("/metrics")
+@app.get("/metrics", dependencies=[Depends(require_api_token)])
 def metrics():
     return {
         "dossiers_processed_total": len(supervisor.dossier_registry),
@@ -35,21 +36,24 @@ def metrics():
     }
 
 
-@app.post("/api/audit")
+@app.post("/api/audit", dependencies=[Depends(require_api_token)])
 def api_audit(payload: SystemTaskPayload):
-    dossier = supervisor.process_task(payload)
+    try:
+        dossier = supervisor.process_task(payload)
+    except SecurityException:
+        raise HTTPException(status_code=422, detail="Input contains a prohibited identifier") from None
     return dossier.to_dict()
 
 
-@app.post("/api/chat")
+@app.post("/api/chat", dependencies=[Depends(require_api_token)])
 def api_chat(req: ChatRequest):
     try:
         ans = supervisor.query_supervisory_chat(req.query)
         return {"response": ans}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except SecurityException:
+        raise HTTPException(status_code=422, detail="Input contains a prohibited identifier") from None
 
 
-@app.get("/api/audit/logs")
+@app.get("/api/audit/logs", dependencies=[Depends(require_api_token)])
 def api_audit_logs():
     return {"audit_trail": AuditLogger.get_trail(), "verified": AuditLogger.verify_integrity()}

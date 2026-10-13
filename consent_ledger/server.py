@@ -4,13 +4,15 @@ FastAPI REST API Server for ConsentLedger: Smart Contract Dynamic Patient Data U
 from typing import Dict, Any
 from .models import FrontierPayload
 from .agents import ConsentLedgerCoordinator
+from agents.auth import require_api_token
+from agents.base import SecurityException
 
 coordinator = ConsentLedgerCoordinator()
 
 
 def create_app():
     try:
-        from fastapi import FastAPI
+        from fastapi import Depends, FastAPI, HTTPException
         from pydantic import BaseModel
 
         app = FastAPI(
@@ -35,7 +37,7 @@ def create_app():
         def health():
             return {"status": "HEALTHY", "system": "decentralized-clinical-consent-agent", "domain": "Privacy-Preserving Federated Healthcare & FHE", "version": "2.0.0-FRONTIER"}
 
-        @app.post("/api/audit")
+        @app.post("/api/audit", dependencies=[Depends(require_api_token)])
         def api_audit(req: TaskRequest):
             payload = FrontierPayload(
                 task_id=req.task_id,
@@ -46,11 +48,17 @@ def create_app():
                 is_critical_flag=req.is_critical_flag,
                 attributes=req.attributes,
             )
-            return coordinator.process(payload)
+            try:
+                return coordinator.process(payload)
+            except SecurityException:
+                raise HTTPException(status_code=422, detail="Input contains a prohibited identifier") from None
 
-        @app.post("/api/chat")
+        @app.post("/api/chat", dependencies=[Depends(require_api_token)])
         def api_chat(req: ChatRequest):
-            return {"response": coordinator.query_supervisory_chat(req.query)}
+            try:
+                return {"response": coordinator.query_supervisory_chat(req.query)}
+            except SecurityException:
+                raise HTTPException(status_code=422, detail="Input contains a prohibited identifier") from None
 
         return app
     except ImportError:

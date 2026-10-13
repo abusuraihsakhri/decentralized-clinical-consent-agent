@@ -1,40 +1,43 @@
-name: Decentralized Clinical Consent Engine CI/CD & Security Verification
+name: Python tests and browser syntax
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
 
 jobs:
-  test-and-audit:
+  verify:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install fastapi uvicorn pydantic pytest
-
-    - name: Run Pytest Suite
-      run: |
-        pytest -v
-
-    - name: Security SAST & Zero-PHI Audit
-      run: |
-        python -c "
-        from agents.base import PHIGuard, AuditLogger
-        import pytest
-        assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
-        "
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package and test dependencies
+        run: python -m pip install -e ".[test]"
+      - name: Compile Python sources
+        run: python -m compileall -q agents consent_ledger cli.py simulator.py enrichment.py
+      - name: Run regression suite
+        run: python -m pytest -q
+      - name: Audit installed Python dependencies
+        if: matrix.python-version == '3.12'
+        run: |
+          python -m pip install pip-audit
+          python -m pip uninstall -y decentralized-clinical-consent-engine
+          python -m pip_audit --strict --progress-spinner off
+      - name: Check browser JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("web/index.html").read_text(encoding="utf-8")
+          matches = re.findall(r"<script>([\s\S]*?)</script>", html)
+          assert len(matches) == 1, "Expected one inline script"
+          Path("/tmp/consent-browser.js").write_text(matches[0], encoding="utf-8")
+          PY
+          node --check /tmp/consent-browser.js
+          node tests/check_browser.cjs

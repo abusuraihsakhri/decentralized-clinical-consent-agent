@@ -1,178 +1,83 @@
 # Decentralized Clinical Consent Agent
 
-> **Domain:** Clinical Decision Support & Biomedical Computing
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+Prototype rule-based evaluation and audit tooling, implemented in Python with an offline browser preview. **This repository does not implement a clinical consent authorization system:** it does not validate FHIR Consent resources, W3C decentralized identifiers, patient signatures, revocation state, or smart contracts.
 
-<div align="center">
+## What works
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+- Three Python evaluation workers apply demonstration thresholds: primary metric **> 25**, secondary metric **> 12** or an explicit critical flag, and anomaly keywords in the descriptor. Thresholds are illustrative, **not clinically validated**.
+- A supervisor produces a JSON dossier with alerts and an in-memory, chained HMAC-SHA256 audit entry.
+- A FastAPI server exposes health, metrics, evaluation, mock chat, and audit-log retrieval endpoints. All endpoints except `/health` require a configured bearer token.
+- A CLI supports a single evaluation, CSV batch processing, mock chat, and integrity checks. The separate `consent_ledger` module has an older rule set and command-line entry point.
+- `web/index.html` runs an **offline, local JavaScript preview** of the three current worker rules, with JSON export. It does not call the Python API and does not generate an HMAC audit trail.
 
-</div>
+## Browser preview
 
----
+Open `web/index.html` in a modern browser, enter **synthetic** identifiers and metrics, select **Evaluate locally**, and optionally **Export JSON**. The browser does not send data to a server. GitHub Pages deployment is configured through `.github/workflows/pages.yml`; deployment requires Pages to be enabled for the repository.
 
-## What It Does
+The preview is not a production clinical tool. It deliberately labels its output `LOCAL_RULES_PREVIEW`.
 
-**Decentralized Clinical Consent Agent** is an analytical and computational platform implementing smart contract dynamic patient data use authorization and signature verification. It provides multi-worker evaluation of clinical tasks with tamper-evident audit logging and zero-PHI outbound protection.
+## Install and run
 
----
-
-## Key Capabilities
-
-- **Deterministic Calculation Engine**: Strict compliance with standard reference formulations and thresholds.
-- **Risk & Urgency Classification**: Multi-tier categorization with automated clinical/operational action recommendations.
-- **Validation & Guardrails**: Rigorous input bounds checking and anomaly detection.
-- **Zero-PHI Outbound Interceptor**: Active regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-- **Tamper-Evident HMAC-SHA256 Audit Trail**: Chained, cryptographically signed logs for every evaluation and state transition.
-- **FastAPI REST API**: Exposes OpenAPI 3.1 REST endpoints and operational metrics.
-
----
-
-## Installation
+Requires Python 3.9 or later.
 
 ```bash
-# Clone the repository
 git clone https://github.com/abusuraihsakhri/decentralized-clinical-consent-agent.git
 cd decentralized-clinical-consent-agent
-
-# Install dependencies
-pip install -e .
-
-# Or install with test dependencies
-pip install -e ".[test]"
-```
-
----
-
-## CLI Usage
-
-### 1. Run Single Task Evaluation
-```bash
-python cli.py audit --task-id TASK-001 --target KEY-01 --primary 28.5 --secondary 14.2 --critical --status DISCORDANT
-```
-
-### 2. Interactive Chat Query
-```bash
-python cli.py chat "What is the system status?"
-```
-
-### 3. Batch Process CSV Records
-```bash
+python -m pip install -e ".[test]"
+python cli.py audit --task-id DEMO-001 --target SYNTH-001 --primary 28.5 --secondary 14.2 --status DISCORDANT
 python cli.py batch -i sample.csv -o results.csv
-```
-
-### 4. Verify Audit Trail Integrity
-```bash
 python cli.py verify-audit
+python -m pytest -q
 ```
 
-### 5. Launch FastAPI REST Server
+Boolean CSV values for `is_critical_flag` accept `true/false`, `1/0`, `yes/no`, or `y/n` (case-insensitive); ambiguous values are rejected. `verify-audit` checks only the **current process's** in-memory audit chain; the CLI does not persist audit logs between invocations.
+
+The older module can be used with `python consent_ledger_app.py audit` and `python consent_ledger_app.py batch -i sample.csv`. Its numerical thresholds are different.
+
+## Authenticated REST API
+
+Set **both** environment variables before starting the server:
+
 ```bash
+export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+export API_AUTH_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
 python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
-### Parameters
-- `--task-id`: Unique task / case identifier
-- `--target`: Entity, patient key, or genomic/cryptographic target
-- `--primary`: Primary domain measurement or score (float)
-- `--secondary`: Secondary kinetic or confidence score (float)
-- `--critical`: Emergency escalation flag
-- `--status`: Status code or phenotype descriptor
+```bash
+curl http://127.0.0.1:8000/health
+curl -H "Authorization: Bearer $API_AUTH_TOKEN" http://127.0.0.1:8000/metrics
+curl -H "Authorization: Bearer $API_AUTH_TOKEN" -H "Content-Type: application/json" \
+  -d '{"task_id":"DEMO-001","target_identifier":"SYNTH-001","primary_metric":28.5,"secondary_metric":14.2,"status_descriptor":"NOMINAL","is_critical_flag":false}' \
+  http://127.0.0.1:8000/api/audit
+```
 
----
+Interactive API docs: `http://127.0.0.1:8000/docs`. The supported endpoints are `GET /health`, `GET /metrics`, `POST /api/audit`, `POST /api/chat`, and `GET /api/audit/logs`.
 
-## REST API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health and metadata check |
-| GET | `/metrics` | Operational metrics |
-| POST | `/api/audit` | Dispatch task payload across specialized workers |
-| POST | `/api/chat` | Air-gapped supervisory conversational assistant |
-| GET | `/api/audit/logs` | Retrieve and verify HMAC audit trail |
-
----
-
-## Testing
+Docker uses the same environment variables:
 
 ```bash
-# Run the full test suite
-pytest -v
-
-# Run with coverage
-pytest -v --cov=agents --cov=consent_ledger
+docker compose up --build
 ```
 
----
+Compose refuses to start without both variables; never commit their values. Expose the server only behind HTTPS, authentication, and appropriate operational access controls.
 
-## Simulation Benchmark
+## Security and scope limitations
+
+**Do not enter or transmit real patient data.** The server uses pattern-based identifier detection, not reliable PHI detection, de-identification, HIPAA compliance, or anonymization. The audit ledger and evaluation dossiers are stored **in memory** and are not durable, replicated, or blockchain-backed. The audit key must remain stable to verify logs within an application session; no persistent ledger is provided.
+
+The `/api/chat` path uses a deterministic mock responder, not an external LLM or validated clinical expert system. Descriptive references to CAP, CLSI, FHIR, DID, and other standards do **not** establish standards conformance. The static preview and Python evaluator are independent implementations; server-side validation and HMAC controls do not run in the browser.
+
+## Development and checks
 
 ```bash
-# Run high-throughput simulation (default 100 tasks)
-python simulator.py 1000
+python -m compileall -q agents consent_ledger cli.py simulator.py enrichment.py
+python -m pytest -q
+python simulator.py 100
 ```
 
----
-
-## Security Configuration
-
-### Audit Secret Key
-Set the `AUDIT_SECRET_KEY` environment variable for persistent cryptographic signing:
-```bash
-export AUDIT_SECRET_KEY="your-secure-random-key"
-```
-
-If not set, a random key is generated per session (logs will not persist across restarts).
-
-### Docker Deployment
-```bash
-docker build -t decentralized-clinical-consent-agent .
-docker run -p 8000:8000 -e AUDIT_SECRET_KEY="your-key" decentralized-clinical-consent-agent
-```
-
-Or using docker-compose:
-```bash
-docker-compose up -d
-```
-
----
-
-## Project Structure
-
-```
-decentralized-clinical-consent-agent/
-├── agents/                  # Core agent modules
-│   ├── api.py              # FastAPI REST server
-│   ├── base.py             # Security, PHI guard, audit trail
-│   ├── models.py           # Pydantic data schemas
-│   ├── supervisor.py       # Multi-worker orchestrator
-│   ├── workers.py          # Specialized evaluation workers
-│   ├── llm_factory.py      # LLM provider factory
-│   ├── learning.py         # Bayesian calibration engine
-│   ├── metrics.py          # Prometheus metrics collector
-│   └── streamer.py         # WebSocket telemetry broadcaster
-├── consent_ledger/          # ConsentLedger module
-│   ├── agents.py           # Consent validation agents
-│   ├── engine.py           # Core algorithmic engine
-│   ├── models.py           # Data models
-│   ├── cli.py              # CLI for consent ledger
-│   └── server.py           # FastAPI server factory
-├── tests/                   # Test suite
-├── web/index.html           # Operations console UI
-├── cli.py                   # Main CLI entry point
-├── simulator.py             # High-throughput simulator
-├── enrichment.py            # Enrichment feature engines
-├── pyproject.toml           # Project configuration
-└── Dockerfile               # Container build config
-```
-
----
+CI installs the project on Python 3.9–3.12, runs tests, and checks the browser's inline JavaScript syntax. The implementation uses Python, Pydantic, FastAPI, and plain HTML/CSS/JavaScript; no runtime browser-Python dependency is needed.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).

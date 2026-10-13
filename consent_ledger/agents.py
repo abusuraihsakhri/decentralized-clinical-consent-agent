@@ -3,6 +3,9 @@ Distributed Component Coordination & Executive Hierarchy for ConsentLedger: Smar
 Domain: Privacy-Preserving Federated Healthcare & FHE
 """
 import uuid
+import json
+
+from agents.base import PHIGuard
 from typing import Dict, Any, List, Optional
 from .models import FrontierPayload, AgentTelemetryAlert, ExecutionStatus
 from .engine import FrontierDomainEngine
@@ -68,6 +71,7 @@ class ConsentLedgerCoordinator:
         self.execution_ledger: Dict[str, Dict[str, Any]] = {}
 
     def process(self, payload: FrontierPayload) -> Dict[str, Any]:
+        PHIGuard.assert_no_phi(json.dumps(vars(payload), ensure_ascii=False, default=str))
         all_alerts: List[AgentTelemetryAlert] = []
         all_alerts.extend(self.sub_1.audit(payload))
         all_alerts.extend(self.sub_2.audit(payload))
@@ -101,6 +105,7 @@ class ConsentLedgerCoordinator:
         return dossier
 
     def query_supervisory_chat(self, query: str) -> str:
+        PHIGuard.assert_no_phi(query)
         q = query.strip().lower()
         if "status" in q or "ledger" in q:
             return f"ConsentLedger: Smart Contract Dynamic Patient Data Use Authorization Agent currently managing {len(self.execution_ledger)} execution tasks in air-gapped memory."

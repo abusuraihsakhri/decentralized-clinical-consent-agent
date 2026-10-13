@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   decentralized-clinical-consent-engine:
     build: .
@@ -7,7 +5,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - AUDIT_SECRET_KEY=decentralized-clinical-consent-engine-prod-audit-key-2026
+      - AUDIT_SECRET_KEY=${AUDIT_SECRET_KEY:?Set a strong AUDIT_SECRET_KEY before deployment}
+      - API_AUTH_TOKEN=${API_AUTH_TOKEN:?Set an API_AUTH_TOKEN before deployment}
       - MODEL_PROVIDER=mock
     restart: unless-stopped
     healthcheck:

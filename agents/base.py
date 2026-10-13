@@ -9,6 +9,7 @@ import time
 import hmac
 import hashlib
 import secrets
+import copy
 import math
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -72,12 +73,13 @@ class AuditTrail:
 
     def _compute_signature(self, audit_id: str, ts: str, actor: str, actor_tier: str,
                            event_type: str, payload_hash: str, prev_hash: str) -> str:
-        sign_string = f"{audit_id}|{ts}|{actor}|{actor_tier}|{event_type}|{payload_hash}|{prev_hash}"
+        sign_string = json.dumps([audit_id, ts, actor, actor_tier, event_type, payload_hash, prev_hash], ensure_ascii=False, separators=(",", ":"))
         return hmac.new(self.secret_key, sign_string.encode("utf-8"), hashlib.sha256).hexdigest()
 
     def log(self, actor: str, actor_tier: str, event_type: str, details: Dict[str, Any]) -> Dict[str, Any]:
         payload_str = json.dumps(details, sort_keys=True)
-        assert_no_phi(payload_str)
+        for part in (payload_str, actor, actor_tier, event_type):
+            assert_no_phi(part)
         payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
         audit_id = f"AUDIT-{int(time.time()*1000)}-{len(self.logs)+1}"
         ts = datetime.now(timezone.utc).isoformat()
@@ -117,7 +119,7 @@ class AuditTrail:
         return True
 
     def get_trail(self) -> List[Dict[str, Any]]:
-        return self.logs
+        return copy.deepcopy(self.logs)
 
 
 GLOBAL_AUDIT = AuditTrail()
