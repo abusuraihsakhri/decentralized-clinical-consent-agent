@@ -4,13 +4,14 @@ FastAPI REST API Server for ConsentLedger: Smart Contract Dynamic Patient Data U
 from typing import Dict, Any
 from .models import FrontierPayload
 from .agents import ConsentLedgerCoordinator
+from agents.auth import require_api_token
 
 coordinator = ConsentLedgerCoordinator()
 
 
 def create_app():
     try:
-        from fastapi import FastAPI
+        from fastapi import Depends, FastAPI
         from pydantic import BaseModel
 
         app = FastAPI(
@@ -35,7 +36,7 @@ def create_app():
         def health():
             return {"status": "HEALTHY", "system": "decentralized-clinical-consent-agent", "domain": "Privacy-Preserving Federated Healthcare & FHE", "version": "2.0.0-FRONTIER"}
 
-        @app.post("/api/audit")
+        @app.post("/api/audit", dependencies=[Depends(require_api_token)])
         def api_audit(req: TaskRequest):
             payload = FrontierPayload(
                 task_id=req.task_id,
@@ -48,7 +49,7 @@ def create_app():
             )
             return coordinator.process(payload)
 
-        @app.post("/api/chat")
+        @app.post("/api/chat", dependencies=[Depends(require_api_token)])
         def api_chat(req: ChatRequest):
             return {"response": coordinator.query_supervisory_chat(req.query)}
 
