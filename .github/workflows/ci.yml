@@ -27,7 +27,8 @@ jobs:
         if: matrix.python-version == '3.12'
         run: |
           python -m pip install pip-audit
-          python -m pip_audit --strict --skip-editable --progress-spinner off
+          python -m pip uninstall -y decentralized-clinical-consent-engine
+          python -m pip_audit --strict --progress-spinner off
       - name: Check browser JavaScript syntax
         run: |
           python - <<'PY'
