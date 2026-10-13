@@ -1,5 +1,7 @@
 # Decentralized Clinical Consent Agent
 
+### [Open the Live Application →](https://abusuraihsakhri.github.io/decentralized-clinical-consent-agent/)
+
 Prototype rule-based evaluation and audit tooling, implemented in Python with an offline browser preview. **This repository does not implement a clinical consent authorization system:** it does not validate FHIR Consent resources, W3C decentralized identifiers, patient signatures, revocation state, or smart contracts.
 
 ## What works
@@ -12,7 +14,7 @@ Prototype rule-based evaluation and audit tooling, implemented in Python with an
 
 ## Browser preview
 
-Open `web/index.html` in a modern browser, enter **synthetic** identifiers and metrics, select **Evaluate locally**, and optionally **Export JSON**. The browser does not send data to a server. GitHub Pages deployment is configured through `.github/workflows/pages.yml`; deployment requires Pages to be enabled for the repository.
+Open `web/index.html` in a modern browser, enter **synthetic** identifiers and metrics, select **Evaluate locally**, and optionally **Export JSON**. The browser does not send data to a server. GitHub Pages publishes this static preview through `.github/workflows/pages.yml`.
 
 The preview is not a production clinical tool. It deliberately labels its output `LOCAL_RULES_PREVIEW`.
 
