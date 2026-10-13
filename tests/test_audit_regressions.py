@@ -48,6 +48,19 @@ def test_alternate_api_authentication(monkeypatch):
     assert client.get("/health").status_code == 200
     assert client.post("/api/chat", json={"query": "status"}).status_code == 401
 
+    response = client.post(
+        "/api/audit",
+        json={
+            "task_id": "DEMO-1", "target_identifier": "SYNTH-1",
+            "primary_metric": 1.0, "secondary_metric": 1.0,
+            "status_descriptor": "NOMINAL",
+            "attributes": {"contact": "patient@example.com"},
+        },
+        headers={"Authorization": "Bearer test-token-never-deploy"},
+    )
+    assert response.status_code == 422
+    assert "patient@example.com" not in response.text
+
 
 def test_audit_trail_returns_isolated_copy():
     trail = AuditTrail(secret_key="regression-test")
