@@ -2,10 +2,12 @@
 import os
 import secrets
 
+from typing import Optional
+
 from fastapi import Header, HTTPException
 
 
-def require_api_token(authorization: str | None = Header(default=None)) -> None:
+def require_api_token(authorization: Optional[str] = Header(default=None)) -> None:
     """Fail closed when the deployment token is absent or invalid."""
     expected = os.environ.get("API_AUTH_TOKEN")
     if not expected:
