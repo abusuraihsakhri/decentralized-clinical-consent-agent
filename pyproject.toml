@@ -26,15 +26,20 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=7.0",
+    "httpx>=0.27",
 ]
 
 [project.scripts]
 decentralized-clinical-consent-engine = "cli:main"
 
 [project.urls]
-Homepage = "https://github.com/abusuraihsakhri/decentralized-clinical-consent-engine"
-Repository = "https://github.com/abusuraihsakhri/decentralized-clinical-consent-engine.git"
+Homepage = "https://github.com/abusuraihsakhri/decentralized-clinical-consent-agent"
+Repository = "https://github.com/abusuraihsakhri/decentralized-clinical-consent-agent"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.setuptools]
+packages = ["agents", "consent_ledger"]
+py-modules = ["cli", "simulator", "enrichment", "consent_ledger_app"]
